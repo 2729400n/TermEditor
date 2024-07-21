@@ -7,13 +7,15 @@ use std::env::{self, Args};
 use std::error::Error as Err;
 use std::io::Error as IOError;
 use std::time::{Duration, Instant};
-use termion::color;
-use termion::event::Key;
+use crossterm::style::Color;
+use crossterm::event::*;
 use thiserror::Error;
+use crate::terminal;
+
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-const STATUS_FG_COLOR: color::Rgb = color::Rgb(63, 63, 63);
-const STATUS_BG_COLOR: color::Rgb = color::Rgb(239, 239, 239);
+const STATUS_FG_COLOR:Color = Color::Rgb{r:63, g:63, b:63};
+const STATUS_BG_COLOR: Color = Color::Rgb{r:239, g:239, b:239};
 const QUIT_TIME: u8 = 1;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -54,7 +56,7 @@ pub struct Revise {
     clipboard: ClipboardContext,
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug,Error)]
 #[error("Cannot copy content")]
 pub struct CopyError;
 
@@ -132,14 +134,13 @@ impl Revise {
     }
 
     fn process_keypress(&mut self) -> Result<(), IOError> {
-        let pressed_key = Terminal::read_key()?;
-
-        match pressed_key {
-            Key::Ctrl('c') => match self.copy_content() {
+        let pressed_key = terminal::Terminal::read_key()? ; 
+        match pressed_key.code {
+            KeyCode::Char('C') if pressed_key.modifiers==KeyModifiers::CONTROL => match self.copy_content() {
                 Ok(_) => (),
                 Err(err) => self.status_message = StatusMessage::from(format!("{err}")),
             },
-            Key::Ctrl('v') => match self.paste_content() {
+            KeyCode::Char('V') if pressed_key.modifiers==KeyModifiers::CONTROL => match self.paste_content() {
                 Ok(v) => {
                     for c in v.chars().rev() {
                         match self.document.insert(&self.cursor_position, c) {
@@ -156,26 +157,26 @@ impl Revise {
                         StatusMessage::from(format!("Failed to paste content: {err}"))
                 }
             },
-            Key::Ctrl('q') => return self.quit(),
-            Key::Ctrl('s') => self.save(),
-            Key::Ctrl('f') => self.search(),
-            Key::Char(c) => match self.document.insert(&self.cursor_position, c) {
-                Ok(_) => self.move_cursor(Key::Right),
+            KeyCode::Char('q') => return self.quit(),
+            KeyCode::Char('s') => self.save(),
+            KeyCode::Char('f') => self.search(),
+            KeyCode::Char(c) => match self.document.insert(&self.cursor_position, c) {
+                Ok(_) => self.move_cursor(KeyCode::Right),
                 Err(err) => {
                     self.status_message =
                         StatusMessage::from(format!("Failed to paste content: {err}"))
                 }
             },
-            Key::Delete => match self.document.delete(&self.cursor_position) {
+            KeyCode::Delete => match self.document.delete(&self.cursor_position) {
                 Ok(_) => (),
                 Err(err) => {
                     self.status_message =
                         StatusMessage::from(format!("Failed to remove content: {err}"))
                 }
             },
-            Key::Backspace => {
+            KeyCode::Backspace => {
                 if self.cursor_position.x > 0 || self.cursor_position.y > 0 {
-                    self.move_cursor(Key::Left);
+                    self.move_cursor(KeyCode::Left);
 
                     match self.document.delete(&self.cursor_position) {
                         Ok(_) => (),
@@ -186,14 +187,14 @@ impl Revise {
                     }
                 }
             }
-            Key::Up
-            | Key::Down
-            | Key::Left
-            | Key::Right
-            | Key::PageUp
-            | Key::PageDown
-            | Key::End
-            | Key::Home => self.move_cursor(pressed_key),
+            KeyCode::Up
+            | KeyCode::Down
+            | KeyCode::Left
+            | KeyCode::Right
+            | KeyCode::PageUp
+            | KeyCode::PageDown
+            | KeyCode::End
+            | KeyCode::Home => self.move_cursor(pressed_key.code),
             _ => (),
         }
 
@@ -290,7 +291,7 @@ impl Revise {
         println!("{welcome_message}\r");
     }
 
-    fn move_cursor(&mut self, key: Key) {
+    fn move_cursor(&mut self, key: KeyCode) {
         let terminal_height = self.terminal.size().height as usize;
         let Position { mut y, mut x } = self.cursor_position;
         let height = self.document.len();
@@ -301,13 +302,13 @@ impl Revise {
         };
 
         match key {
-            Key::Up => y = y.saturating_sub(1),
-            Key::Down => {
+            KeyCode::Up => y = y.saturating_sub(1),
+            KeyCode::Down => {
                 if y < height {
                     y = y.saturating_add(1);
                 }
             }
-            Key::Left => {
+            KeyCode::Left => {
                 if x > 0 {
                     x -= 1;
                 } else if y > 0 {
@@ -320,7 +321,7 @@ impl Revise {
                     }
                 }
             }
-            Key::Right => {
+            KeyCode::Right => {
                 if x < width {
                     x += 1;
                 } else if y < height {
@@ -328,22 +329,22 @@ impl Revise {
                     x = 0;
                 }
             }
-            Key::PageUp => {
+            KeyCode::PageUp => {
                 y = if y > terminal_height {
                     y.saturating_sub(terminal_height)
                 } else {
                     0
                 }
             }
-            Key::PageDown => {
+            KeyCode::PageDown => {
                 y = if y.saturating_add(terminal_height) < height {
                     y.saturating_add(terminal_height)
                 } else {
                     height
                 }
             }
-            Key::Home => x = 0,
-            Key::End => x = width,
+            KeyCode::Home => x = 0,
+            KeyCode::End => x = width,
             _ => (),
         }
 
@@ -430,7 +431,7 @@ impl Revise {
 
     fn prompt<C>(&mut self, prompt: &str, mut callback: C) -> Result<Option<String>, Box<dyn Err>>
     where
-        C: FnMut(&mut Self, Key, &String),
+        C: FnMut(&mut Self, KeyCode, &String),
     {
         let mut result = String::new();
 
@@ -440,21 +441,21 @@ impl Revise {
 
             let key = Terminal::read_key()?;
 
-            match key {
-                Key::Backspace => result.truncate(result.len().saturating_sub(1)),
-                Key::Char('\n') => break,
-                Key::Char(c) => {
+            match key.code {
+                KeyCode::Backspace => result.truncate(result.len().saturating_sub(1)),
+                KeyCode::Char('\n') => break,
+                KeyCode::Char(c) => {
                     if !c.is_control() {
                         result.push(c);
                     }
                 }
-                Key::Esc => {
+                KeyCode::Esc => {
                     result.truncate(0);
                     break;
                 }
                 _ => (),
             }
-            callback(self, key, &result);
+            callback(self, key.code, &result);
         }
 
         self.status_message = StatusMessage::from(String::new());
@@ -494,12 +495,12 @@ impl Revise {
                     let mut moved = false;
 
                     match key {
-                        Key::Right | Key::Down => {
+                        KeyCode::Right | KeyCode::Down => {
                             direction = SearchDirection::Forward;
-                            revise.move_cursor(Key::Right);
+                            revise.move_cursor(KeyCode::Right);
                             moved = true;
                         }
-                        Key::Left | Key::Up => direction = SearchDirection::Backward,
+                        KeyCode::Left | KeyCode::Up => direction = SearchDirection::Backward,
                         _ => direction = SearchDirection::Forward,
                     }
 
@@ -511,7 +512,7 @@ impl Revise {
                         revise.cursor_position = position;
                         revise.scroll();
                     } else if moved {
-                        revise.move_cursor(Key::Left);
+                        revise.move_cursor(KeyCode::Left);
                     }
 
                     revise.highlighted_word = Some(query.to_owned());
