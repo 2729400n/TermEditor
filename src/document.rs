@@ -6,6 +6,7 @@ use crate::Row;
 use crate::SearchDirection;
 
 use std::error::Error;
+use std::fs::OpenOptions;
 use std::fs::{read_to_string, File};
 use std::io::{Error as IOError, Write};
 
@@ -57,7 +58,7 @@ impl Document {
 
         self.changed = true;
 
-        if c == '\n' {
+        if c == '\n'|| c=='\r' {
             match self.insert_newline(at) {
                 Ok(_) => (),
                 Err(err) => return Err(err),

@@ -101,6 +101,9 @@ impl Revise {
     }
 
     pub fn run(&mut self) -> Result<(), Box<dyn Err>> {
+        if let Err(_) = crossterm::terminal::enable_raw_mode(){
+            println!("There was an error Transfering into the write mode!");
+        }
         loop {
             if let Err(error) = self.refresh_screen() {
                 match self.clipboard.clear() {
@@ -135,8 +138,9 @@ impl Revise {
 
     fn process_keypress(&mut self) -> Result<(), IOError> {
         let pressed_key = terminal::Terminal::read_key()? ; 
-        match pressed_key.code {
-            KeyCode::Char('C') if pressed_key.modifiers==KeyModifiers::CONTROL => match self.copy_content() {
+        if pressed_key.modifiers==KeyModifiers::CONTROL{
+            match pressed_key.code {
+            KeyCode::Char('C')  => match self.copy_content() {
                 Ok(_) => (),
                 Err(err) => self.status_message = StatusMessage::from(format!("{err}")),
             },
@@ -153,21 +157,28 @@ impl Revise {
                     }
                 }
                 Err(err) => {
-                    self.status_message =
-                        StatusMessage::from(format!("Failed to paste content: {err}"))
+                    self.status_message = StatusMessage::from(format!("Failed to paste content: {err}"))
                 }
             },
             KeyCode::Char('q') => return self.quit(),
             KeyCode::Char('s') => self.save(),
             KeyCode::Char('f') => self.search(),
+            KeyCode::Char('z') => return self.quit(),
+            KeyCode::Char('H') => print!("Hello"),
+            KeyCode::Char('o') => print!("Hello"),
+            _=>()
+            
+        }
+    }else{
+        match pressed_key.code {
             KeyCode::Char(c) => match self.document.insert(&self.cursor_position, c) {
                 Ok(_) => self.move_cursor(KeyCode::Right),
                 Err(err) => {
-                    self.status_message =
-                        StatusMessage::from(format!("Failed to paste content: {err}"))
+                    self.status_message = StatusMessage::from(format!("Failed to paste content: {err}"))
                 }
             },
-            KeyCode::Delete => match self.document.delete(&self.cursor_position) {
+            
+                KeyCode::Delete => match self.document.delete(&self.cursor_position) {
                 Ok(_) => (),
                 Err(err) => {
                     self.status_message =
@@ -197,6 +208,7 @@ impl Revise {
             | KeyCode::Home => self.move_cursor(pressed_key.code),
             _ => (),
         }
+    }
 
         self.scroll();
 
@@ -205,7 +217,7 @@ impl Revise {
             self.status_message = StatusMessage::from(String::new());
         }
 
-        Ok(())
+        return Ok(())
     }
 
     fn quit(&mut self) -> Result<(), IOError> {

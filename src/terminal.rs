@@ -1,13 +1,9 @@
 use crate::Position;
-use std::{io::{ stdout, Error, Stdout, Write}};
+use std::{io::{ stdout, Error, Stdout, Write}, ops::Sub, time::Duration};
 use crossterm::{event::*, style::Color};
 use crossterm::cursor;
 use crossterm::terminal::*;
 use crossterm::event::KeyEvent;
-// use termion::input::TermRead;
-// use termion::raw::{IntoRawMode, RawTerminal};
-// use termion::terminal_size;
-// use termion::{clear, color, cursor};
 
 pub struct Size {
     pub width: u16,
@@ -25,12 +21,12 @@ impl Terminal {
     /// Will return `Error` if it fails to get terminal size  
     /// or if it fails to switch to raw mode
     pub fn new() -> Result<Self, Error> {
-        let size : (u16,u16)= crossterm::terminal::size().ok().unwrap();
+        let size : (u16,u16)= crossterm::terminal::size()?;
 
         Ok(Self {
             size: Size {
-                width: size.0,
-                height: size.1.saturating_sub(2),
+                width: size.0.sub(1),
+                height: size.1.saturating_sub(3),
             },
             _stdout: term::stdout().unwrap(),
         })
@@ -71,13 +67,19 @@ impl Terminal {
     /// Will return an error if it fails to read key
     pub fn read_key() -> Result<KeyEvent, Error> {
         loop {
+            if true ==  poll(Duration::from_millis(50))?{
+                
+            
             let key = crossterm::event::read()?;
             match key  {
                 Event::Key(opt)=> {
-                    return Ok(opt);
+                    if opt.kind==KeyEventKind::Press{
+                        return Ok(opt);
+                    }
                 },
                 _=>{}
             }
+        }
         }
     }
 

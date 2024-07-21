@@ -14,14 +14,17 @@ See [Installation Guide](https://www.rust-lang.org/tools/install)
 ## Installation
 Run the following command to install Revise
 ```
-cargo install revise
+cargo install TermEdit
 ```
 
 ## Usage
-To start using Revise, run the following command
+To start using TermEdit, run the following command
 ```
-revise <file>
+TermEdit <file>
 ```
+## 
+This work is a fork of The revise terminal editor by nadmax it however implements cross terminal comatibility
+
 
 ## Contributing
 See [Contributing Section](https://github.com/nadmax/revise/blob/master/CONTRIBUTING.md) to find out how you can contribute.  

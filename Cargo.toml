@@ -1,14 +1,14 @@
 [package]
-name = "revise"
-version = "0.1.5"
+name = "TermEditor"
+version = "0.1.1"
 edition = "2021"
-authors = ["nadmax <n.maximilien1@gmail.com>"]
+authors = ["nadmax <2729400@student.gla.ac.uk>"]
 license = "MIT"
-description = "A minimalist text editor"
-homepage = "https://github.com/nadmax/revise"
-keywords = ["cli", "text-editor", "linux"]
+description = "A Terminal Editor"
+homepage = "https://github.io/2729400n/TermEditor"
+keywords = ["cli", "text-editor"]
 readme = "CARGO.md"
-repository = "https://github.com/nadmax/revise"
+repository = "https://github.com/2729400n/TermEditor"
 categories = ["text-editors", "development-tools", "command-line-interface"]
 
 [dependencies]
@@ -16,7 +16,6 @@ unicode-segmentation = "1.10.1"
 cli-clipboard = "0.4.0"
 thiserror = "1.0.49"
 sys = "0.0.1"
-cross = "0.2.5"
 term = "0.7.0"
 crossterm = "0.27.0"
 
